@@ -10,10 +10,9 @@ app.use(require('cors')());
 app.get('/api/psn', async (req, res) => {
   try {
     const npssoToken = 'ytRANQi9XCazRZ6NsTFYDP39wUAOsNIOnN2Dcp7yKPpb5iXCVXfdu8bzwVzGzyKT'; // Remplace par ton token NPSSO
-    const response = await axios.get('https://m.np.playstation.net/api/userProfile/v1/internal/users/me/profile2', {
-      headers: {
-        'Cookie': `npsso=${npssoToken}`,
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.162 Mobile Safari/537.36'
+    const response = await axios.get('https://us-central1-heyplaystation.cloudfunctions.net/getUserProfile', {
+      params: {
+        npsso: npssoToken
       }
     });
     res.json(response.data);
@@ -27,4 +26,3 @@ app.get('/api/psn', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Serveur démarré sur le port ${PORT}`);
 });
-
