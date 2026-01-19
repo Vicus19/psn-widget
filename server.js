@@ -1,29 +1,100 @@
-const express = require('express');
-const axios = require('axios');
-const app = express();
-const PORT = process.env.PORT || 3000;
+from os import getenv
 
-// Autorise les requêtes depuis Widgy
-app.use(require('cors')());
+from dotenv import load_dotenv
 
-// Endpoint pour récupérer les données PSN
-app.get('/api/psn', async (req, res) => {
-  try {
-    const npssoToken = 'ytRANQi9XCazRZ6NsTFYDP39wUAOsNIOnN2Dcp7yKPpb5iXCVXfdu8bzwVzGzyKT'; // Remplace par ton token NPSSO
-    const response = await axios.get('https://us-central1-playstation-api.cloudfunctions.net/psn', {
-      headers: {
-        'Cookie': `npsso=${npssoToken}`,
-        'User-Agent': 'Mozilla/5.0 (PlayStation; PlayStation 5/6.00)'
-      }
-    });
-    res.json(response.data);
-  } catch (error) {
-    console.error("Erreur lors de la récupération des données PSN :", error.response ? error.response.data : error.message);
-    res.status(500).json({ error: "Erreur lors de la récupération des données PSN", details: error.message });
-  }
-});
+from psnawp_api import PSNAWP
+from psnawp_api.models.search import SearchDomain
+from psnawp_api.models.trophies import PlatformType
 
-// Démarre le serveur
-app.listen(PORT, () => {
-  console.log(`Serveur démarré sur le port ${PORT}`);
-});
+load_dotenv()
+
+
+psnawp = PSNAWP(getenv("NPSSO_CODE", "NPSSO_CODE"))
+
+# Your Personal Account Info
+client = psnawp.me()
+print(f"Online ID: {client.online_id}")
+print(f"Account ID: {client.account_id}")
+print(f"Region: {client.get_region()}")
+print(f"Profile: {client.get_profile_legacy()} \n")
+
+# Your Registered Devices
+devices = client.get_account_devices()
+for device in devices:
+    print(f"Device: {device} \n")
+
+# Your Friends List
+friends_list = client.friends_list()
+for friend in friends_list:
+    print(f"Friend: {friend} \n")
+
+# Your Players Blocked List
+blocked_list = client.blocked_list()
+for blocked_user in blocked_list:
+    print(f"Blocked User: {blocked_user} \n")
+
+# Your Friends in "Notify when available" List
+available_to_play = client.available_to_play()
+for user in available_to_play:
+    print(f"Available to Play: {user} \n")
+
+# Your trophies (PS4)
+for trophy in client.trophies("NPWR22810_00", PlatformType.PS4):
+    print(trophy)
+
+# Your Chat Groups
+groups = client.get_groups()
+first_group_id = None  # This will be used later to test group methods
+for id, group in enumerate(groups):
+    if id == 0:  # Get the first group ID
+        first_group_id = group.group_id
+
+    group_info = group.get_group_information()
+    print(f"Group {id}: {group_info} \n")
+
+# Your Playing time (PS4, PS5 above only)
+titles_with_stats = client.title_stats()
+for title in titles_with_stats:
+    print(
+        f" \
+        Game: {title.name} - \
+        Play Count: {title.play_count} - \
+        Play Duration: {title.play_duration} \n"
+    )
+
+
+# Other User's
+example_user_1 = psnawp.user(online_id="VaultTec-Co")  # Get a PSN player by their Online ID
+print(f"User 1 Online ID: {example_user_1.online_id}")
+print(f"User 1 Account ID: {example_user_1.account_id}")
+print(f"User 1 Region: {example_user_1.get_region()}")
+
+print(example_user_1.profile())
+print(example_user_1.prev_online_id)
+print(example_user_1.get_presence())
+print(example_user_1.friendship())
+print(example_user_1.is_blocked())
+
+# Example of getting a user by their account ID
+user_account_id = psnawp.user(account_id="9122947611907501295")
+print(f"User Account ID: {user_account_id.online_id}")
+
+
+# Messaging and Groups Interaction
+group = psnawp.group(group_id=first_group_id)  # This is the first group ID we got earlier - i.e. the first group in your groups list
+print(group.get_group_information())
+print(group.get_conversation(10))  # Get the last 10 messages in the group
+group.send_message("Hello World")
+group.change_name("API Testing 3")
+group.leave_group()
+
+# Create a new group with other users - i.e. 'VaultTec-Co' and 'test'
+example_user_2 = psnawp.user(online_id="test")
+new_group = psnawp.group(users_list=[example_user_1, example_user_2])
+print(new_group.get_group_information())
+# You can use the same above methods to interact with the new group - i.e. send messages, change name, etc.
+
+# Searching for Game Titles
+search = psnawp.search(search_query="GTA 5", search_domain=SearchDomain.FULL_GAMES)
+for search_result in search:
+    print(search_result["result"]["invariantName"])
